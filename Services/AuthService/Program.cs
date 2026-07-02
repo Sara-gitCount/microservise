@@ -163,4 +163,23 @@ if (app.Environment.IsDevelopment())
 // Map controllers
 app.MapControllers();
 
+// Apply database migrations on startup
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    
+    try
+    {
+        logger.LogInformation("Applying database migrations for AuthService...");
+        await dbContext.Database.MigrateAsync();
+        logger.LogInformation("Database migrations completed for AuthService");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Error applying database migrations for AuthService");
+        throw;
+    }
+}
+
 app.Run("http://localhost:5001");

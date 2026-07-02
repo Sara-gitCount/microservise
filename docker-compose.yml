@@ -1,0 +1,252 @@
+version: '3.8'
+
+services:
+  # SQL Server Database - Each service has its own database
+  mssql-db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: mechira-mssql-db
+    ports:
+      - "1433:1433"
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "YourPasswordHere123!"
+      MSSQL_PID: "Developer"
+    volumes:
+      - mssql-data:/var/opt/mssql/data
+      - mssql-log:/var/opt/mssql/log
+      - mssql-backup:/var/opt/mssql/backup
+      - ./init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql
+    networks:
+      - mechira-network
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourPasswordHere123! -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # AuthService
+  auth-service:
+    build:
+      context: .
+      dockerfile: Services/AuthService/Dockerfile
+    container_name: mechira-auth-service
+    ports:
+      - "5001:5001"
+    environment:
+      ASPNETCORE_URLS: http://+:5001
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Server=mssql-db,1433;Database=Mechira-AuthService;User Id=sa;Password=YourPasswordHere123!;TrustServerCertificate=true;Encrypt=false;"
+      Jwt__SecretKey: "your-super-secret-key-that-must-be-at-least-32-characters-long-for-hmac256"
+      Jwt__Issuer: "AuthService"
+      Jwt__Audience: "MicroservicesApi"
+      Jwt__ExpiryMinutes: "60"
+      ServiceUrls__AuthService: "http://auth-service:5001"
+      ServiceUrls__CatalogService: "http://catalog-service:5002"
+      ServiceUrls__OrderService: "http://order-service:5003"
+      ServiceUrls__LotteryService: "http://lottery-service:5004"
+    depends_on:
+      mssql-db:
+        condition: service_healthy
+    networks:
+      - mechira-network
+    restart: unless-stopped
+
+  # CatalogService
+  catalog-service:
+    build:
+      context: .
+      dockerfile: Services/CatalogService/Dockerfile
+    container_name: mechira-catalog-service
+    ports:
+      - "5002:5002"
+    environment:
+      ASPNETCORE_URLS: http://+:5002
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Server=mssql-db,1433;Database=Mechira-CatalogService;User Id=sa;Password=YourPasswordHere123!;TrustServerCertificate=true;Encrypt=false;"
+      Jwt__SecretKey: "your-super-secret-key-that-must-be-at-least-32-characters-long-for-hmac256"
+      Jwt__Issuer: "AuthService"
+      Jwt__Audience: "MicroservicesApi"
+      Jwt__ExpiryMinutes: "60"
+      ServiceUrls__AuthService: "http://auth-service:5001"
+      ServiceUrls__CatalogService: "http://catalog-service:5002"
+      ServiceUrls__OrderService: "http://order-service:5003"
+      ServiceUrls__LotteryService: "http://lottery-service:5004"
+    depends_on:
+      mssql-db:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+      redis-cache:
+        condition: service_healthy
+    networks:
+      - mechira-network
+    restart: unless-stopped
+
+  # OrderService
+  order-service:
+    build:
+      context: .
+      dockerfile: Services/OrderService/Dockerfile
+    container_name: mechira-order-service
+    ports:
+      - "5003:5003"
+    environment:
+      ASPNETCORE_URLS: http://+:5003
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Server=mssql-db,1433;Database=Mechira-OrderService;User Id=sa;Password=YourPasswordHere123!;TrustServerCertificate=true;Encrypt=false;"
+      Jwt__SecretKey: "your-super-secret-key-that-must-be-at-least-32-characters-long-for-hmac256"
+      Jwt__Issuer: "AuthService"
+      Jwt__Audience: "MicroservicesApi"
+      Jwt__ExpiryMinutes: "60"
+      ServiceUrls__AuthService: "http://auth-service:5001"
+      ServiceUrls__CatalogService: "http://catalog-service:5002"
+      ServiceUrls__OrderService: "http://order-service:5003"
+      ServiceUrls__LotteryService: "http://lottery-service:5004"
+    depends_on:
+      mssql-db:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+      rabbitmq-service:
+        condition: service_healthy
+    networks:
+      - mechira-network
+    restart: unless-stopped
+
+  # LotteryService
+  lottery-service:
+    build:
+      context: .
+      dockerfile: Services/LotteryService/Dockerfile
+    container_name: mechira-lottery-service
+    ports:
+      - "5004:5004"
+    environment:
+      ASPNETCORE_URLS: http://+:5004
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Server=mssql-db,1433;Database=Mechira-LotteryService;User Id=sa;Password=YourPasswordHere123!;TrustServerCertificate=true;Encrypt=false;"
+      Jwt__SecretKey: "your-super-secret-key-that-must-be-at-least-32-characters-long-for-hmac256"
+      Jwt__Issuer: "AuthService"
+      Jwt__Audience: "MicroservicesApi"
+      Jwt__ExpiryMinutes: "60"
+      ServiceUrls__AuthService: "http://auth-service:5001"
+      ServiceUrls__CatalogService: "http://catalog-service:5002"
+      ServiceUrls__OrderService: "http://order-service:5003"
+      ServiceUrls__LotteryService: "http://lottery-service:5004"
+    depends_on:
+      mssql-db:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+    networks:
+      - mechira-network
+    restart: unless-stopped
+
+  # NotificationService (Event-driven notification service)
+  notification-service:
+    build:
+      context: .
+      dockerfile: Services/NotificationService/Dockerfile
+    container_name: mechira-notification-service
+    ports:
+      - "5005:5005"
+    environment:
+      ASPNETCORE_URLS: http://+:5005
+      ASPNETCORE_ENVIRONMENT: Production
+      Jwt__SecretKey: "your-super-secret-key-that-must-be-at-least-32-characters-long-for-hmac256"
+      Jwt__Issuer: "AuthService"
+      Jwt__Audience: "MicroservicesApi"
+      Jwt__ExpiryMinutes: "60"
+    depends_on:
+      rabbitmq-service:
+        condition: service_healthy
+    networks:
+      - mechira-network
+    restart: unless-stopped
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Gateway/ApiGateway/Dockerfile
+    container_name: mechira-api-gateway
+    ports:
+      - "5000:5000"
+    environment:
+      ASPNETCORE_URLS: http://+:5000
+      ASPNETCORE_ENVIRONMENT: Production
+      Jwt__SecretKey: "your-super-secret-key-that-must-be-at-least-32-characters-long-for-hmac256"
+      Jwt__Issuer: "AuthService"
+      Jwt__Audience: "MicroservicesApi"
+      Jwt__ExpiryMinutes: "60"
+      # Gateway routing configuration (update if using environment variable configuration)
+      ServiceUrls__AuthService: "http://auth-service:5001"
+      ServiceUrls__CatalogService: "http://catalog-service:5002"
+      ServiceUrls__OrderService: "http://order-service:5003"
+      ServiceUrls__LotteryService: "http://lottery-service:5004"
+    depends_on:
+      - auth-service
+      - catalog-service
+      - order-service
+      - lottery-service
+    networks:
+      - mechira-network
+    restart: unless-stopped
+
+  # RabbitMQ Message Broker
+  rabbitmq-service:
+    image: rabbitmq:3.13-management
+    container_name: mechira-rabbitmq
+    ports:
+      - "5672:5672"      # AMQP protocol port
+      - "15672:15672"    # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - mechira-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  # Redis Cache
+  redis-cache:
+    image: redis:7-alpine
+    container_name: mechira-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - mechira-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+
+# Networks
+networks:
+  mechira-network:
+    driver: bridge
+
+# Volumes for database persistence
+volumes:
+  mssql-data:
+    driver: local
+  mssql-log:
+    driver: local
+  mssql-backup:
+    driver: local
+  rabbitmq-data:
+    driver: local
+  redis-data:
+    driver: local

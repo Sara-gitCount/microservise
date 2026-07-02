@@ -1,0 +1,49 @@
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Build outputs
+bin/
+obj/
+.vs/
+.vscode/
+
+# Node modules
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Logs
+logs/
+*.log
+
+# User files
+*.user
+*.suo
+*.sln.user
+
+# IDE and editor files
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Environment and configuration
+.env
+.env.local
+.env.*.local
+
+# Testing
+TestResults/
+*.trx
+
+# Package files
+.nuget/
+
+# Temporary files
+tmp/
+temp/
+
+# OS-specific
+Thumbs.db

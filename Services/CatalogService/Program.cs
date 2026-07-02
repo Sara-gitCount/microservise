@@ -6,6 +6,9 @@ using CatalogService.Services;
 using CatalogService.Interfaces;
 using CatalogService.Middleware;
 using SharedModels.Utilities;
+using MassTransit;
+using StackExchange.Redis;
+using CatalogService.Services.Cache;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -44,6 +47,26 @@ builder.Services.AddScoped<ICategoriesService, CategoriesService>();
 
 // Utilities
 builder.Services.AddSingleton<JwtTokenService>();
+
+// ============ REDIS CACHE CONFIGURATION ============
+builder.Services.AddSingleton<IConnectionMultiplexer>(
+    ConnectionMultiplexer.Connect("redis:6379"));
+builder.Services.AddScoped<ICacheService, CacheService>();
+
+// ============ MASSTRANSIT CONFIGURATION ============
+builder.Services.AddMassTransit(x =>
+{
+    x.AddConsumers(typeof(Program).Assembly);
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        cfg.Host("rabbitmq", h =>
+        {
+            h.Username("guest");
+            h.Password("guest");
+        });
+        cfg.ConfigureEndpoints(context);
+    });
+});
 
 // ============ CORS CONFIGURATION ============
 builder.Services.AddCors(options =>
@@ -180,5 +203,24 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Apply database migrations on startup
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    
+    try
+    {
+        logger.LogInformation("Applying database migrations for CatalogService...");
+        await dbContext.Database.MigrateAsync();
+        logger.LogInformation("Database migrations completed for CatalogService");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Error applying database migrations for CatalogService");
+        throw;
+    }
+}
 
 app.Run("http://localhost:5002");

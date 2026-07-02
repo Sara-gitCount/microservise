@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using SharedModels.Dtos;
 using OrderService.Interfaces;
+using MassTransit;
+using SharedModels.Events;
 
 namespace OrderService.Controllers;
 
@@ -10,11 +12,13 @@ public class OrdersController : ControllerBase
 {
     private readonly IOrdersService _ordersService;
     private readonly ILogger<OrdersController> _logger;
+    private readonly IPublishEndpoint _publishEndpoint;
 
-    public OrdersController(IOrdersService ordersService, ILogger<OrdersController> logger)
+    public OrdersController(IOrdersService ordersService, ILogger<OrdersController> logger, IPublishEndpoint publishEndpoint)
     {
         _ordersService = ordersService;
         _logger = logger;
+        _publishEndpoint = publishEndpoint;
     }
 
     /// <summary>
@@ -53,6 +57,36 @@ public class OrdersController : ControllerBase
         }
 
         _logger.LogInformation("Order created successfully with ID: {OrderId}", orderId);
+
+        // Publish OrderPlaced event to initiate the Order Saga
+        try
+        {
+            var orderPlacedEvent = new OrderPlaced
+            {
+                OrderId = new Guid($"00000000-0000-0000-0000-{orderId:000000000000}"),
+                UserId = new Guid($"00000000-0000-0000-0000-{request.UserId:000000000000}"),
+                TotalPrice = request.TotalPrice,
+                Items = new List<OrderItemDto>
+                {
+                    new OrderItemDto
+                    {
+                        ProductId = new Guid($"00000000-0000-0000-0000-{request.GiftId:000000000000}"),
+                        Quantity = request.Quantity,
+                        Price = request.TotalPrice
+                    }
+                },
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _publishEndpoint.Publish(orderPlacedEvent);
+            _logger.LogInformation("OrderPlaced event published for Order: {OrderId}", orderId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to publish OrderPlaced event for Order: {OrderId}", orderId);
+            // Don't fail the order creation if event publishing fails - log and continue
+        }
+
         return StatusCode(StatusCodes.Status201Created, new ApiResponse<object>
         {
             Success = true,

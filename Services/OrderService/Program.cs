@@ -12,6 +12,7 @@ using Microsoft.OpenApi.Models;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Http.Resilience;
 using Polly;
+using MassTransit;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -127,6 +128,21 @@ builder.Services.AddHttpClient<CatalogServiceClient>(client =>
             }
         });
     });
+
+// ============ MASSTRANSIT CONFIGURATION ============
+builder.Services.AddMassTransit(x =>
+{
+    x.AddConsumers(typeof(Program).Assembly);
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        cfg.Host("rabbitmq", h =>
+        {
+            h.Username("guest");
+            h.Password("guest");
+        });
+        cfg.ConfigureEndpoints(context);
+    });
+});
 
 // ============ CORS CONFIGURATION ============
 builder.Services.AddCors(options =>
@@ -245,5 +261,24 @@ if (app.Environment.IsDevelopment())
 
 // Map controllers
 app.MapControllers();
+
+// Apply database migrations on startup
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<OrderDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    
+    try
+    {
+        logger.LogInformation("Applying database migrations for OrderService...");
+        await dbContext.Database.MigrateAsync();
+        logger.LogInformation("Database migrations completed for OrderService");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Error applying database migrations for OrderService");
+        throw;
+    }
+}
 
 app.Run("http://localhost:5003");

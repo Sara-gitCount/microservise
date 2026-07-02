@@ -1,5 +1,8 @@
 D:\Documents\שרי\לימודים\microservise\server\Services\AuthService\bin\Debug\net8.0\appsettings.Development.json
 D:\Documents\שרי\לימודים\microservise\server\Services\AuthService\bin\Debug\net8.0\appsettings.json
+D:\Documents\שרי\לימודים\microservise\server\Services\AuthService\bin\Debug\net8.0\AuthService.Tests\obj\AuthService.Tests.csproj.nuget.dgspec.json
+D:\Documents\שרי\לימודים\microservise\server\Services\AuthService\bin\Debug\net8.0\AuthService.Tests\obj\Debug\net8.0\AuthService.Tests.sourcelink.json
+D:\Documents\שרי\לימודים\microservise\server\Services\AuthService\bin\Debug\net8.0\AuthService.Tests\obj\project.assets.json
 D:\Documents\שרי\לימודים\microservise\server\Services\AuthService\bin\Debug\net8.0\AuthService.staticwebassets.endpoints.json
 D:\Documents\שרי\לימודים\microservise\server\Services\AuthService\bin\Debug\net8.0\AuthService.exe
 D:\Documents\שרי\לימודים\microservise\server\Services\AuthService\bin\Debug\net8.0\AuthService.deps.json

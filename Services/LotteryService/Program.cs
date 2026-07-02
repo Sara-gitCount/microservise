@@ -246,4 +246,23 @@ if (app.Environment.IsDevelopment())
 // Map controllers
 app.MapControllers();
 
+// Apply database migrations on startup
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<LotteryDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    
+    try
+    {
+        logger.LogInformation("Applying database migrations for LotteryService...");
+        await dbContext.Database.MigrateAsync();
+        logger.LogInformation("Database migrations completed for LotteryService");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Error applying database migrations for LotteryService");
+        throw;
+    }
+}
+
 app.Run("http://localhost:5004");

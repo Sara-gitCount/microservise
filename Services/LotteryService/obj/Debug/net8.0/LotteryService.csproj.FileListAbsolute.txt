@@ -1,5 +1,7 @@
 D:\Documents\שרי\לימודים\microservise\server\Services\LotteryService\bin\Debug\net8.0\appsettings.Development.json
 D:\Documents\שרי\לימודים\microservise\server\Services\LotteryService\bin\Debug\net8.0\appsettings.json
+D:\Documents\שרי\לימודים\microservise\server\Services\LotteryService\bin\Debug\net8.0\LotteryService.Tests\obj\LotteryService.Tests.csproj.nuget.dgspec.json
+D:\Documents\שרי\לימודים\microservise\server\Services\LotteryService\bin\Debug\net8.0\LotteryService.Tests\obj\project.assets.json
 D:\Documents\שרי\לימודים\microservise\server\Services\LotteryService\bin\Debug\net8.0\LotteryService.staticwebassets.endpoints.json
 D:\Documents\שרי\לימודים\microservise\server\Services\LotteryService\bin\Debug\net8.0\LotteryService.exe
 D:\Documents\שרי\לימודים\microservise\server\Services\LotteryService\bin\Debug\net8.0\LotteryService.deps.json
